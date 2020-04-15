@@ -13,7 +13,7 @@ uint8_t ESP8266_send ( ESP8266_handleTypeDef *hesp8266, uint8_t *data, uint16_t 
 uint8_t ESP8266_receive_IT( ESP8266_handleTypeDef *hesp8266, uint8_t **data, uint16_t size, uint8_t Time_out)
 {
 
-    HAL_UART_Receive_IT(hesp8266->usart, &hesp8266->buffer[hesp8266->receiveframelength], 1);
+    HAL_UART_Receive_IT(hesp8266->usart, (uint8_t *)&hesp8266->buffer[hesp8266->receiveframelength], 1);
     // __HAL_UART_ENABLE_IT(hesp8266->usart, UART_FLAG_IDLE);
     return 0;
 }
@@ -29,7 +29,7 @@ static uint8_t esp8266_transmit_receive(ESP8266_handleTypeDef *hesp8266, uint8_t
     send_data = data;
     HAL_UART_Transmit(hesp8266->usart, send_data, size, Time_out);
     hesp8266->receiveframelength = 0;
-    while((HAL_UART_Receive(hesp8266->usart, &hesp8266->buffer[hesp8266->receiveframelength], 1, Time_out) )== HAL_OK)
+    while((HAL_UART_Receive(hesp8266->usart, (uint8_t *)&hesp8266->buffer[hesp8266->receiveframelength], 1, Time_out) )== HAL_OK)
     {
         if((hesp8266->buffer[hesp8266->receiveframelength] == '\n') && (hesp8266->buffer[hesp8266->receiveframelength-1] == '\r'))
         {
@@ -43,7 +43,7 @@ static uint8_t esp8266_transmit_receive(ESP8266_handleTypeDef *hesp8266, uint8_t
     }
 out:
 
-    HAL_UART_Transmit(&huart1, hesp8266->buffer, hesp8266->receiveframelength+1, 100);
+    HAL_UART_Transmit(&huart1, (uint8_t *)hesp8266->buffer, hesp8266->receiveframelength+1, 100);
 
     hesp8266->receiveframelength = 0 ;
     return 0;
@@ -67,7 +67,7 @@ uint8_t ESP8266_INIT_AP(ESP8266_handleTypeDef *hesp8266)
 
 int ESP8266_INIT_STA(ESP8266_handleTypeDef *hesp8266, char *sta_ssid, int ssid_length, char *sta_key, int key_length)
 {
-    int i,j,k;
+    int i;
     char ssid[ssid_length+1],key[key_length+1];
     printf("%s\r\n", sta_key);
     if(!sta_ssid || !sta_key)
@@ -106,11 +106,9 @@ uint8_t ESP8266_CREATE_TCP(ESP8266_handleTypeDef *hesp8266)
 
 uint8_t esp8266_receive(ESP8266_handleTypeDef *hesp8266, uint32_t Time_out)
 {
-    char temp[10]= {0};
-    int count = 0;
     char *pos = NULL;
     hesp8266->receiveframelength = 0;
-    while((HAL_UART_Receive(hesp8266->usart, &hesp8266->buffer[hesp8266->receiveframelength], 1, Time_out) )!= HAL_TIMEOUT)
+    while((HAL_UART_Receive(hesp8266->usart, (uint8_t *)&hesp8266->buffer[hesp8266->receiveframelength], 1, Time_out) )!= HAL_TIMEOUT)
     {
 
         hesp8266->receiveframelength++;
@@ -190,7 +188,7 @@ uint8_t esp8266_receive(ESP8266_handleTypeDef *hesp8266, uint32_t Time_out)
        char *temp_pos = NULL; 
        temp_pos = pos;
        int ssid_count = 0, key_count = 0, count = 0;
-       char *ssid = NULL, *key = NULL;
+     
        //判断 i(KEY),所在的指针是否存在 
        if(( pos = strstr(hesp8266->buffer, "KEY")) != NULL )
        {

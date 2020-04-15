@@ -27,7 +27,7 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
 //         esp8266.receiveframeflag = 0;
 //     }
      
-    HAL_UART_Receive_IT(esp8266.usart, &esp8266.buffer[esp8266.receiveframelength], 1);
+    HAL_UART_Receive_IT(esp8266.usart, (uint8_t *)&esp8266.buffer[esp8266.receiveframelength], 1);
     __HAL_UART_ENABLE_IT(esp8266.usart, UART_FLAG_IDLE);
 }
 

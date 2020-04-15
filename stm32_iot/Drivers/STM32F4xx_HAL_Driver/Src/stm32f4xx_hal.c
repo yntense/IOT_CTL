@@ -386,7 +386,6 @@ HAL_TickFreqTypeDef HAL_GetTickFreq(void)
   * @param Delay specifies the delay time length, in milliseconds.
   * @retval None
   */
-#include "stdio.h"
 __weak void HAL_Delay(uint32_t Delay)
 {
   uint32_t tickstart = HAL_GetTick();
@@ -400,9 +399,7 @@ __weak void HAL_Delay(uint32_t Delay)
 
   while((HAL_GetTick() - tickstart) < wait)
   {
-      
   }
- 
 }
 
 /**

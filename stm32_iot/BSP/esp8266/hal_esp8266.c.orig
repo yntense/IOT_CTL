@@ -1,0 +1,303 @@
+
+#include "hal_esp8266.h"
+#include "stdio.h"
+#include "string.h"
+#include "stdlib.h"
+#include "ctype.h"
+uint8_t ESP8266_send ( ESP8266_handleTypeDef *hesp8266, uint8_t *data, uint16_t size, uint8_t Time_out)
+{
+    return HAL_UART_Transmit(hesp8266->usart, data, size, Time_out);
+
+}
+
+uint8_t ESP8266_receive_IT( ESP8266_handleTypeDef *hesp8266, uint8_t **data, uint16_t size, uint8_t Time_out)
+{
+
+    HAL_UART_Receive_IT(hesp8266->usart, &hesp8266->buffer[hesp8266->receiveframelength], 1);
+    // __HAL_UART_ENABLE_IT(hesp8266->usart, UART_FLAG_IDLE);
+    return 0;
+}
+
+static uint8_t esp8266_transmit_receive(ESP8266_handleTypeDef *hesp8266, uint8_t *data, uint16_t size, uint32_t Time_out)
+{
+    unsigned char *send_data = NULL;
+
+    if(!data)
+    {
+        return 1;
+    }
+    send_data = data;
+    HAL_UART_Transmit(hesp8266->usart, send_data, size, Time_out);
+    hesp8266->receiveframelength = 0;
+    while((HAL_UART_Receive(hesp8266->usart, &hesp8266->buffer[hesp8266->receiveframelength], 1, Time_out) )== HAL_OK)
+    {
+        if((hesp8266->buffer[hesp8266->receiveframelength] == '\n') && (hesp8266->buffer[hesp8266->receiveframelength-1] == '\r'))
+        {
+            if((hesp8266->buffer[hesp8266->receiveframelength-2] == 'K') && (hesp8266->buffer[hesp8266->receiveframelength-3] == 'O'))
+            {
+                goto out;
+            }
+        }
+
+        hesp8266->receiveframelength++;
+    }
+out:
+
+    HAL_UART_Transmit(&huart1, hesp8266->buffer, hesp8266->receiveframelength+1, 100);
+
+    hesp8266->receiveframelength = 0 ;
+    return 0;
+}
+
+
+
+uint8_t ESP8266_MODE(ESP8266_handleTypeDef *hesp8266)
+{
+    unsigned char data[] = "AT+CWMODE=3\r\n";
+    esp8266_transmit_receive(hesp8266, data, sizeof(data)-1,5000);
+    return 0;
+}
+
+uint8_t ESP8266_INIT_AP(ESP8266_handleTypeDef *hesp8266)
+{
+    unsigned char data[] = "AT+CWSAP=\"MY_ESP\",\"12345678\",1,3,4,0\r\n";
+    esp8266_transmit_receive(hesp8266, data, sizeof(data)-1,5000);
+    return 0;
+}
+
+int ESP8266_INIT_STA(ESP8266_handleTypeDef *hesp8266, char *sta_ssid, int ssid_length, char *sta_key, int key_length)
+{
+    int i,j,k;
+    char ssid[ssid_length+1],key[key_length+1];
+    if(!sta_ssid || !sta_key)
+    {
+        printf("fail\r\n");
+        return -1;
+    }
+    memset(ssid, 0,ssid_length+1);
+    memset(key, 0,ssid_length+1);
+    memcpy(ssid, sta_ssid, ssid_length);
+    memcpy(key, sta_key, key_length);
+
+    key[key_length] = '\0';
+    ssid[ssid_length] = '\0';
+    printf("sta-ssid %s \r\n",ssid);
+    i = 19 + ssid_length + key_length;
+    char data[i];
+    sprintf(data, "AT+CWJAP=\"%s\",\"%s\"\r\n", ssid, key);
+    i = strlen(data);
+    printf("data %s",data);
+    esp8266_transmit_receive(hesp8266, (unsigned char *)data, i,7000);
+    return 0;
+}
+
+uint8_t ESP8266_CREATE_TCP(ESP8266_handleTypeDef *hesp8266)
+{
+    unsigned char data_mux[] = "AT+CIPMUX=1\r\n";
+    esp8266_transmit_receive(hesp8266, data_mux, sizeof(data_mux)-1,5000);
+    unsigned char data_server[] = "AT+CIPSERVER=1\r\n";
+    esp8266_transmit_receive(hesp8266, data_server, sizeof(data_server)-1,5000);
+    unsigned char data_ap[] = "AT+CIPAP?\r\n";
+    esp8266_transmit_receive(hesp8266, data_ap, sizeof(data_ap)-1,5000);
+
+    return 0;
+}
+
+uint8_t esp8266_receive(ESP8266_handleTypeDef *hesp8266, uint32_t Time_out)
+{
+    char temp[10]= {0};
+    int count = 0;
+    char *pos = NULL;
+    hesp8266->receiveframelength = 0;
+    while((HAL_UART_Receive(hesp8266->usart, &hesp8266->buffer[hesp8266->receiveframelength], 1, Time_out) )!= HAL_TIMEOUT)
+    {
+
+        hesp8266->receiveframelength++;
+    }
+    hesp8266->buffer[hesp8266->receiveframelength] = '\0';
+    if(hesp8266->receiveframelength > 0)
+    {
+        printf("start data %send\r\n", hesp8266->buffer);
+        printf("length  %d\r\n", hesp8266->receiveframelength);
+
+    }
+    
+    
+    //匹配 connect 所在位置
+    if((pos = strtok(hesp8266->buffer, "CONNECT")) != NULL )
+    {
+    //判断 id (CONNECT),所在的指针是否存在
+    while( (pos - 2) != NULL )
+    { 
+        pos = pos -2;
+        if(pos != NULL)
+        {
+            printf("\r\npos %s connect\r\n", pos);
+            printf("pos %c connect\r\n", *pos);
+            printf("pos %p connect\r\n\r\n", pos);
+            int i = 0;
+            while( i < 5)
+            {
+                
+                if(hesp8266->tcp_client_array[i].state == WAIT_UPDATE)
+                {
+                    printf("id %d \r\n" ,hesp8266->tcp_client_array[i].state);
+                    hesp8266->tcp_client_array[i].id = *pos;
+                    hesp8266->tcp_client_array[i].state = ONLINE;
+                    //清除已经出现过的 CONNECT 字符串
+                    memset(pos, 0, 9);
+                    printf("clear pos %s connect\r\n", pos+10);
+                    pos = NULL;
+                    printf("connect %c\r\n", hesp8266->tcp_client_array[i].id);
+                    pos = strtok(NULL, "CONNECT");
+                    break;
+                }
+                i++;
+            }
+        }
+
+    }
+}
+    if( (pos = strstr(hesp8266->buffer, "CLOSED")) != NULL )
+    {
+        if((pos - (char *)2) != NULL)
+        {
+            printf("pos %c closed\r\n", pos - (char *)1);
+        }
+
+    }
+
+
+
+
+
+    /* //判断第一个字符是否为数字
+     if( isalnum( hesp8266->buffer[0] ))
+     {
+         if(hesp8266->buffer[1] == ',')
+         {
+
+             memcpy(temp, hesp8266->buffer+2, hesp8266->receiveframelength-2);
+             temp[hesp8266->receiveframelength-4] = '\0';
+             if(strcmp(temp, "CONNECT") == 0)
+             {
+
+                 for(int i = 0; i < 5; i++)
+                 {
+                     if(hesp8266->tcp_client_array[i].state == WAIT_UPDATE)
+                     {
+                         hesp8266->tcp_client_array[i].id = hesp8266->buffer[0];
+                         hesp8266->tcp_client_array[i].state = ONLINE;
+                         printf("connect %c\r\n", hesp8266->tcp_client_array[i].id);
+
+                         break;
+                     }
+                 }
+
+             }
+
+             if(strcmp(temp, "CLOSED") == 0)
+             {
+
+                 for(int i = 0; i < 5; i++)
+                 {
+                     if(hesp8266->tcp_client_array[i].id == hesp8266->buffer[0])
+                     {
+                         hesp8266->tcp_client_array[i].state = WAIT_UPDATE;
+                         printf("closed %c\r\n", hesp8266->tcp_client_array[i].id);
+
+                         break;
+                     }
+                 }
+
+             }
+
+             hesp8266->buffer[0] = 0;
+             goto out;
+         }
+
+     }
+
+     /*if(hesp8266->buffer[2] == '+')
+     {
+         int flag = 0;
+
+         //确定冒号位置
+         while(hesp8266->buffer[count] != ':')
+         {
+
+             if(count > 14 )
+             {
+                 flag = 1;
+                 break;
+             }
+             count ++;
+         }
+    //        if(flag == 1)
+    //        {
+    //            if(hesp8266->buffer[count] == ':')
+    //            {
+
+    //                memcpy(temp, hesp8266->buffer+count+1, 3);
+    //                temp[3] = '\0';
+    //                int ssid_count = 0, ex_count = count +5,key_count = 0;
+    //                printf("value %s\r\n", hesp8266->buffer );
+    //                printf("count %d\r\n", count);
+    //                printf("length %d\r\n", hesp8266->receiveframelength);
+    //                printf("data %s", hesp8266->buffer);
+    //                if(strcmp(temp, "KEY") == 0)
+    //                {
+    //                    while(hesp8266->buffer[ex_count] != ',')
+    //                    {
+    //                        ssid_count ++;
+    //                        ex_count ++;
+
+    //                    }
+    //                    char ssid[ssid_count+1];
+    //                    memcpy(ssid, hesp8266->buffer+ex_count-ssid_count,ssid_count );
+    //                    ssid[ssid_count] = '\0';
+    //                    printf("ssid %s  lengh %d\r\n", ssid,ssid_count);
+    //                    while(hesp8266->buffer[ex_count] != '\0')
+    //                    {
+    //                        key_count ++;
+    //                        ex_count ++;
+
+    //                    }
+    //                    ex_count ++;
+    //                    char key[key_count+1];
+    //                    memcpy(key, hesp8266->buffer+ex_count-key_count,key_count );
+    //                    key[key_count] = '\0';
+    //                    printf("key %s lengh %d\r\n", key, key_count);
+    //                    ESP8266_INIT_STA(hesp8266, ssid, ssid_count,key,key_count );
+    //                    goto out;
+
+    //                }
+
+
+
+
+    //            }
+
+
+    //        }
+
+    //        for(int i = 0; i < 5; i++)
+    //        {
+    //            if(hesp8266->tcp_client_array[i].id == hesp8266->buffer[7])
+    //            {
+
+    //                hesp8266->tcp_client_array[i].data = (char *)malloc(hesp8266->receiveframelength);
+    //                memset(hesp8266->tcp_client_array[i].data, 0, hesp8266->receiveframelength);
+    //                memcpy(hesp8266->tcp_client_array[i].data, hesp8266->buffer, hesp8266->receiveframelength);
+    //                printf("client %c :%s\r\n", hesp8266->tcp_client_array[i].id, hesp8266->tcp_client_array[i].data);
+    //                break;
+    //            }
+    //        }
+
+     }*/
+
+out:
+    memset(hesp8266->buffer, 0, hesp8266->receiveframelength);
+    hesp8266->receiveframelength = 0 ;
+    return 0;
+}

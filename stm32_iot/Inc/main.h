@@ -59,7 +59,20 @@ void Error_Handler(void);
 
 /* Private defines -----------------------------------------------------------*/
 /* USER CODE BEGIN Private defines */
+typedef enum {
+INIT_EVENT = 0,
 
+//...
+MAX_EVENT
+}EVENT;
+
+typedef enum {
+WAIT_UPDATE = 0,    
+ONLINE,
+OFFLINE,
+//...
+STA_MAX
+}tcp_client_state;
 /* USER CODE END Private defines */
 
 #ifdef __cplusplus

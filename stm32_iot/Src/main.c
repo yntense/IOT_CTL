@@ -27,6 +27,9 @@
 /* USER CODE BEGIN Includes */
 #include "stdio.h"
 #include "esp8266.h"
+#include "hal_esp8266.h"
+#include "stm32f4xx_hal.h"
+#include "string.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -95,7 +98,14 @@ int main(void)
   /* USER CODE BEGIN 2 */
   
   ESP8266_init();  //init esp8266 instance
-  
+  //ESP8266_receive_IT(&esp8266,NULL,0,0);
+  uint32_t timer = 0,count = 0,count_1 = 0;
+  timer = HAL_GetTick();
+  EVENT event;
+  //TCP_client_MessageTypeDef tcp_client_Message;
+  /*初始化AP+STA模式，并且初始化AP*/
+  ESP8266_MODE(&esp8266);
+  ESP8266_INIT_AP(&esp8266);
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -105,8 +115,54 @@ int main(void)
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
-      printf("test .gitignore\r\n");
-      HAL_Delay(1000);
+     // printf("%d\r\n", timer);
+      while((HAL_GetTick() - timer ) < 5);
+      timer = HAL_GetTick();
+      
+      event = INIT_EVENT;
+     
+      switch(event)
+      {
+          case INIT_EVENT:
+                 
+                if( count == 0 )
+                {
+                    count++;
+                    ESP8266_CREATE_TCP(&esp8266);
+                
+                }
+                esp8266_receive(&esp8266,500);
+//                 if(esp8266.receiveframelength > 0 && strcmp(, ""); )
+//                 {
+//                 
+//                    tcp_client_Message.id = 
+//                 
+//                 
+//                }
+                 
+                 
+                 //event = MAX_EVENT;
+              break;
+          case MAX_EVENT:
+              
+              break;      
+          default :
+              
+              break;      
+      
+      
+      }
+      
+        
+      
+      
+      
+      if(esp8266.receiveframeflag == 1)
+      {
+        HAL_UART_Transmit(&huart1, esp8266.buffer, esp8266.receiveframelength, 100);
+        esp8266.receiveframelength = 0;
+         esp8266.receiveframeflag = 0;
+      }
   }
   /* USER CODE END 3 */
 }

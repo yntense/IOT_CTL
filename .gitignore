@@ -1,2 +1,16 @@
 stm32_iot/MDK-ARM/stm32_iot/
 stm32_iot/MDK-ARM/JLinkLog.txt
+stm32_iot/*.log
+stm32_iot/*.bak
+stm32_iot/*.dbgconf
+stm32_iot/*.HP
+stm32_iot/MDK-ARM/ws-ults/*.build_log.htm
+stm32_iot/MDK-ARM/ws-ults/*.o
+stm32_iot/MDK-ARM/ws-ults/*.crf
+stm32_iot/MDK-ARM/ws-ults/*.d
+stm32_iot/MDK-ARM/ws-ults/*.axf
+stm32_iot/MDK-ARM/ws-ults/ws-ults.hex
+stm32_iot/MDK-ARM/ws-ults/ws-ults.htm
+stm32_iot/MDK-ARM/ws-ults/ws-ults.lnp
+stm32_iot/MDK-ARM/ws-ults/ws-ults.map
+stm32_iot/Docs/~*.xlsx
